@@ -65,11 +65,11 @@ def parse_data_from_habr(url, user_agent, proxy):
         'User-Agent': user_agent
     }
     proxies = {
-        'http': env.str('SOCKS5_PROXY'),
-        'https': env.str('SOCKS5_PROXY')
+        'http': env.str('SOCKS5_PROXY', None),
+        'https': env.str('SOCKS5_PROXY', None)
     }
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, proxies=proxies, headers=headers)
     response.raise_for_status()
     page_html = response.text
     soup = BeautifulSoup(page_html, 'lxml')
@@ -83,7 +83,7 @@ def read_csv_from_google_drive(url):
     return user_urls
 
 
-def upload_data_to_csv(user_link, user_agent, proxy):
+def upload_data_to_csv(user_link, user_agent, proxy, csv_with_errors):
     try:
         url, username, page_html = parse_data_from_habr(user_link[0],
                                                         user_agent,
@@ -93,28 +93,34 @@ def upload_data_to_csv(user_link, user_agent, proxy):
             writer.writerows([[url], [username], [page_html]])
         time.sleep(1)
     except Exception as e:
-        print(e)
+        csv_with_errors.writerows([[user_link[0], e]])
 
 
 def main():
 
     parser = create_argument_parser()
     args = parser.parse_args()
-    user_agents = open('user_agents.txt').read().split('\n')
+    with open('user_agents.txt') as f:
+        user_agents = f.read().split('\n')
     futures = []
     os.makedirs(f'{args.dest_folder}/Страницы с хабра', exist_ok=True)
 
-    # for user_link in read_csv_from_google_drive(args.csv_url):
-    #     upload_data_to_csv(user_link, choice(user_agents), 'choice(proxies)')
+    parser_errors = open(f'Ошибки при парсинге.csv', 'w')
+    csv_with_errors = csv.writer(parser_errors)
+    csv_with_errors.writerows([["Ссылка на пользователя", "Ошибка"]])
     with ThreadPoolExecutor() as executor:
         for user_link in read_csv_from_google_drive(args.csv_url):
             futures.append(
                 executor.submit(upload_data_to_csv,
                                 user_link,
                                 choice(user_agents),
-                                'choice(proxies)')
+                                'choice(proxies)',
+                                csv_with_errors)
             )
     wait(futures)
+    parser_errors.close()
+    if sum(1 for row in open("Ошибки при парсинге.csv")) == 1:
+        os.remove('Ошибки при парсинге.csv')
 
 
 if __name__ == '__main__':
