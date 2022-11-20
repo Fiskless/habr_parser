@@ -36,30 +36,7 @@ def create_argument_parser():
     return parser
 
 
-def get_proxy():
-
-    response = requests.get('https://free-proxy-list.net/')
-    response.raise_for_status()
-    html = response.text
-    soup = BeautifulSoup(html, 'lxml')
-
-    trs = soup.find('table', class_='table table-striped table-bordered').find_all('tr')[1:51]
-
-    proxies = []
-
-    for tr in trs:
-        tds = tr.find_all('td')
-        ip = tds[0].text.strip()
-        port = tds[1].text.strip()
-        if 'yes' in tds[6].text.strip():
-            proxy = {'schema': 'https', 'address': ip + ':' + port}
-            proxies.append(proxy)
-    return proxies
-
-
-def parse_data_from_habr(url, user_agent, proxy):
-
-    # proxy_ip_port = {proxy['schema']: proxy['address']}
+def parse_data_from_habr(url, user_agent):
 
     headers = {
         'User-Agent': user_agent
@@ -83,11 +60,10 @@ def read_csv_from_google_drive(url):
     return user_urls
 
 
-def upload_data_to_csv(user_link, user_agent, proxy, csv_with_errors):
+def upload_data_to_csv(user_link, user_agent, csv_with_errors):
     try:
         url, username, page_html = parse_data_from_habr(user_link[0],
-                                                        user_agent,
-                                                        proxy)
+                                                        user_agent)
         with open(f'Страницы с хабра/{username}.csv', 'w') as f:
             writer = csv.writer(f)
             writer.writerows([[url], [username], [page_html]])
@@ -114,7 +90,6 @@ def main():
                 executor.submit(upload_data_to_csv,
                                 user_link,
                                 choice(user_agents),
-                                'choice(proxies)',
                                 csv_with_errors)
             )
     wait(futures)
