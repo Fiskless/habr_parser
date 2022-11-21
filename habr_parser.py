@@ -19,6 +19,8 @@ from google_drive import create_folder_on_google_drive, \
 env = Env()
 env.read_env()
 
+UPLOAD_TO_GOOGLE_DRIVE = env.bool('UPLOAD_TO_GOOGLE_DRIVE', True)
+
 
 def create_argument_parser():
     parser = argparse.ArgumentParser()
@@ -74,10 +76,11 @@ class HabrParser():
             url, username, page_html = self.parse_data_from_habr(user_link[0],
                                                                  user_agent)
             file_content = f'{url}\n{username}\n{page_html}'
-            create_and_upload_file_google_drive(f'{username}.csv',
-                                                file_content,
-                                                folder_id,
-                                                drive)
+            if UPLOAD_TO_GOOGLE_DRIVE:
+                create_and_upload_file_google_drive(f'{username}.csv',
+                                                    file_content,
+                                                    folder_id,
+                                                    drive)
             with open(f'Страницы с хабра/{username}.csv', 'w') as f:
                 writer = csv.writer(f)
                 writer.writerows([[url], [username], [page_html]])
@@ -102,11 +105,15 @@ def main():
 
     habr_parser = HabrParser(args.csv_url)
 
-    gauth = GoogleAuth()
-    gauth.LocalWebserverAuth()
-    drive = GoogleDrive(gauth)
+    if UPLOAD_TO_GOOGLE_DRIVE:
+        gauth = GoogleAuth()
+        gauth.LocalWebserverAuth()
+        drive = GoogleDrive(gauth)
 
-    folder_id = create_folder_on_google_drive('Страницы с хабра', drive)
+        folder_id = create_folder_on_google_drive('Страницы с хабра', drive)
+    else:
+        folder_id = None
+        drive = None
 
     futures = []
     with ThreadPoolExecutor() as executor:
@@ -128,7 +135,6 @@ def main():
 
 
 if __name__ == '__main__':
-    start_time = time.time()
     main()
-    print("--- %s seconds ---" % (time.time() - start_time))
+
 
