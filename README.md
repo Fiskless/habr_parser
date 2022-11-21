@@ -45,5 +45,10 @@
 python3 main.py --csv_url https://drive.google.com/file/d/432jlk4j23lk4j32lk4j32l4k23jkl4/view --dest_folder some_directory
 ```
 
+Также при работе скрипта создается файл, `Ошибка при парсинге.csv`. 
+В нем собраны страницы, которые не удалось распарсить. Состоит из 2 колонок: 
+url пользователя и ошибка, которая возникла при парсинге. Если ошибок нет, то файл
+удаляется по завершении работы скрипта.
+
 ## Используемые технологии
 python3, argparse, BeautifulSoup, requests, environs
