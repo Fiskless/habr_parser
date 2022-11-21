@@ -9,7 +9,12 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from bs4 import BeautifulSoup
 from random import choice
 from environs import Env
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 import pandas as pd
+
+from google_drive import create_folder_on_google_drive, \
+    create_and_upload_file_google_drive
 
 env = Env()
 env.read_env()
@@ -64,10 +69,15 @@ class HabrParser():
         user_urls = pd.read_csv(path).values
         return user_urls
 
-    def upload_data_to_csv(self, user_link, user_agent, csv_with_errors):
+    def upload_data_to_csv(self, user_link, user_agent, csv_with_errors, folder_id, drive):
         try:
             url, username, page_html = self.parse_data_from_habr(user_link[0],
                                                                  user_agent)
+            file_content = f'{url}\n{username}\n{page_html}'
+            create_and_upload_file_google_drive(f'{username}.csv',
+                                                file_content,
+                                                folder_id,
+                                                drive)
             with open(f'Страницы с хабра/{username}.csv', 'w') as f:
                 writer = csv.writer(f)
                 writer.writerows([[url], [username], [page_html]])
@@ -92,6 +102,12 @@ def main():
 
     habr_parser = HabrParser(args.csv_url)
 
+    gauth = GoogleAuth()
+    gauth.LocalWebserverAuth()
+    drive = GoogleDrive(gauth)
+
+    folder_id = create_folder_on_google_drive('Страницы с хабра', drive)
+
     futures = []
     with ThreadPoolExecutor() as executor:
         for user_link in habr_parser.read_csv_from_google_drive():
@@ -99,7 +115,9 @@ def main():
                 executor.submit(habr_parser.upload_data_to_csv,
                                 user_link,
                                 choice(user_agents),
-                                csv_with_errors)
+                                csv_with_errors,
+                                folder_id,
+                                drive)
             )
     wait(futures)
 
